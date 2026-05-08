@@ -17,7 +17,7 @@ if uploaded_file is not None:
 
     with col1:
         st.subheader("Original Image")
-        st.image(uploaded_file, use_container_width=True)
+        st.image(uploaded_file, width="stretch")
 
     with st.spinner("Processing..."):
         files = {
@@ -40,11 +40,19 @@ if uploaded_file is not None:
             if img_base64:
                 img_bytes = base64.b64decode(img_base64)
                 annotated_image = Image.open(BytesIO(img_bytes))
-                st.image(annotated_image, use_container_width=True)
+                st.image(annotated_image, width="stretch")
             else:
                 st.warning("No annotated image returned.")
 
+        st.subheader("Detected Text")
+        data = result.get("data", [])
+        if data:
+            for item in data:
+                st.write(f"- {item.get('Text', '')}")
+        else:
+            st.write("No text detected.")
+
         st.subheader("JSON Response")
-        st.json(result.get("data", []))
+        st.json(data)
     else:
         st.error(f"Error {response.status_code}: {response.text}")
