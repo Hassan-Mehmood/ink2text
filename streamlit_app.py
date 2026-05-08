@@ -8,21 +8,15 @@ from PIL import Image
 API_URL = "http://localhost:8000/uploadfile/"
 
 st.title("Ink2Text OCR")
-st.write("Upload an image to extract text with bounding boxes.")
+st.write("Upload one or more images to extract text with bounding boxes.")
 
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+uploaded_files = st.file_uploader(
+    "Choose images...", type=["jpg", "jpeg", "png"], accept_multiple_files=True
+)
 
-if uploaded_file is not None:
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Original Image")
-        st.image(uploaded_file, width="stretch")
-
+if uploaded_files:
     with st.spinner("Processing..."):
-        files = {
-            "file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
-        }
+        files = [("files", (f.name, f.getvalue(), f.type)) for f in uploaded_files]
         try:
             response = requests.post(API_URL, files=files)
         except requests.ConnectionError:
@@ -33,26 +27,37 @@ if uploaded_file is not None:
 
     if response.status_code == 200:
         result = response.json()
+        annotated_images = result.get("images", [])
+        all_data = result.get("data", [])
 
-        with col2:
-            st.subheader("Annotated Image")
-            img_base64 = result.get("image")
-            if img_base64:
-                img_bytes = base64.b64decode(img_base64)
-                annotated_image = Image.open(BytesIO(img_bytes))
-                st.image(annotated_image, width="stretch")
+        st.subheader("Results")
+        for idx, uploaded_file in enumerate(uploaded_files):
+            st.divider()
+            st.markdown(f"**Image {idx + 1}: {uploaded_file.name}**")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("*Original*")
+                st.image(uploaded_file, width="stretch")
+
+            with col2:
+                st.markdown("*Annotated*")
+                if idx < len(annotated_images) and annotated_images[idx]:
+                    img_bytes = base64.b64decode(annotated_images[idx])
+                    annotated_image = Image.open(BytesIO(img_bytes))
+                    st.image(annotated_image, width="stretch")
+                else:
+                    st.warning("No annotated image returned.")
+
+            st.subheader("Detected Text")
+            image_data = all_data[idx] if idx < len(all_data) else []
+            if image_data:
+                for item in image_data:
+                    st.write(f"- {item.get('Text', '')}")
             else:
-                st.warning("No annotated image returned.")
+                st.write("No text detected.")
 
-        st.subheader("Detected Text")
-        data = result.get("data", [])
-        if data:
-            for item in data:
-                st.write(f"- {item.get('Text', '')}")
-        else:
-            st.write("No text detected.")
-
-        st.subheader("JSON Response")
-        st.json(data)
+        st.subheader("Full JSON Response")
+        st.json(result)
     else:
         st.error(f"Error {response.status_code}: {response.text}")
