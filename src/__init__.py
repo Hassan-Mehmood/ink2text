@@ -26,7 +26,7 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.post("/uploadfile/")
+@app.post("/uploadfile")
 async def create_upload_file(files: List[UploadFile]):
     ocr = Easyocr()
 
